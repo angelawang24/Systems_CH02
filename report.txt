@@ -1,0 +1,39 @@
+
+---------------------------------------------------------------------
+Data: 5,000
+---------------------------------------------------------------------
+Versions:	|	Sys	|	HW7	|	par		
+---------------------------------------------------------------------
+ivec		|	0.14	|	0.17	|	0.11	
+---------------------------------------------------------------------
+list		|	0.20 	|	0.25	|	0.15
+--------------------------------------------------------------------
+Operating system: GNU/Linux
+Processor model: Intel(R) Core(TM) i5-5250U CPU @ 1.60GHz
+Number of processor cores: 1
+
+
+To create a faster allocator, thread specific arenas were used.
+Thread specific arenas immediately helps because you don’t have different
+threads competing for the same memory, you don’t have to keep unlocking 
+it so the threads can access freelists at the same time. In each arena,
+there are 8 bins with sizes that are different powers of 2, starting at 
+32. So the sizes of the bins are 32, 64, 128, 256, 512, 1024, 2048, and 4096.
+Bins are structures that have a size and a pointer to the freelist for the bin.
+Every node in the bin has the same size as the bin. When the par_malloc is called, 
+the number of bytes is rounded up to the nearest power of 2, starting from 32. 
+It then looks into each of the bins at the free list, looking for something 
+that is big enough and available to be used. If somethig of the exact size is 
+found, the pointer to that node is returned. If something of a bigger size is found
+it stores the remaining into the smaller bin. If nothing is found in the arena,
+2 pages are allocated and what is needed is returned. The rest is put into the 
+appropriate bin starting from the 4096 bin and working backwards. Having bins of
+different sizes makes it constant time for getting a node because if the first node is
+available, it returns that node, otherwise there is nothing in the freelist. Allocating
+2 pages when there is nothing available accounts for possible future uses.
+
+My results show that par is the fastest, then sys and then hw7. This is because par uses
+spread specific arenas that have bins inside of it. This allows for threads to access memory
+at the same time and makes it more efficient. par is also faster because there are less
+system calls in the long run compared to the sys code. hw7 is the slowest because it is
+sharing a freelist between all threads and using a mutex to control memory access.
